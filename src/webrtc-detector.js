@@ -46,12 +46,7 @@ export let initCameraStream = (detectHandler) => {
         let canvas  = document.getElementById('qr-canvas');
         let context = canvas.getContext('2d');
 
-        // context.translate(settings.width, 0);
-        // context.scale(-1, 1);
-
         context.drawImage(video, 0, 0, settings.width, settings.height);
-
-        // context.setTransform(1, 0, 0, 1, 0, 0);
 
         try {
           detectHandler(detector.detect(context.getImageData(0, 0, settings.width, settings.height)));

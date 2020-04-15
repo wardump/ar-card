@@ -1,28 +1,5 @@
 import { detect, initCameraStream } from './webrtc-detector';
 
-class Display {
-  constructor() {
-    this.width    = window.innerWidth;
-    this.height   = window.innerHeight;
-    this.absolute = 0;
-    this.alpha    = 0;
-    this.beta     = 0;
-    this.gamma    = 0;
-
-    window.addEventListener('deviceorientation', (event) => {
-      this.orientationChange(event);
-    });
-  }
-
-  orientationChange(event) {
-    this.absolute = event.absolute;
-    this.alpha    = event.alpha;
-    this.beta     = event.beta;
-    this.gamma    = event.gamma;
-  }
-
-}
-
 class QR {
 
   constructor(points) {
@@ -30,18 +7,18 @@ class QR {
   }
 
   getAngle() {
-    let angle = (this.points[1].y - this.points[0].y) / (this.points[1].x - this.points[0].x);
-    return Math.atan(angle) * 180 / Math.PI;
+    let rad = Math.atan2(this.points[1].y - this.points[0].y, this.points[1].x - this.points[0].x);
+    return rad * 180 / Math.PI;
   }
 
 }
 
 class Transformer {
 
-  constructor(display) {
+  constructor() {
     this.points  = [];
-    this.display = display;
 
+    // TODO: Fix name this variable
     this.__qr    = new QR(this.points);
     this.element = document.getElementById('content');
     this.qr      = document.getElementById('qr');
@@ -52,7 +29,6 @@ class Transformer {
     this.infoPanel    = document.getElementById('info-panel');
 
     this.width    = 0;
-    this.angle    = 0;
     this.firstRun = true;
   }
 
@@ -63,30 +39,32 @@ class Transformer {
 
   run() {
     document.getElementById('content').style.display = 'flex';
+    this.setElementSize();
     this.transform();
-    this.toCenter();
   }
 
   toCenter() {
-    // let a1 = this.points[0].y - this.points[2].y;
-    // let b1 = this.points[2].x - this.points[0].x;
-    //
-    // let a2 = this.points[3].y - this.points[1].y;
-    // let b2 = this.points[1].x - this.points[3].x;
-    //
-    // let d = a1 * b2 - a2 * b1;
-    //
-    // if (d !== 0) {
-    //     let c1 = this.points[2].y * this.points[0].x - this.points[2].x * this.points[0].y;
-    //     let c2 = this.points[1].y * this.points[3].x - this.points[1].x * this.points[3].y;
-    //
-    //     let xi = (b1 * c2 - b2 * c1) / d;
-    //     let yi = (a2 * c1 - a1 * c2) / d;
-    //
-    //     this.element.style.top = yi - this.element.offsetHeight / 2 + 'px';
-    //     this.element.style.left = xi - this.element.offsetWidth / 2 + 'px';
-    // }
+    let a1 = this.points[0].y - this.points[2].y;
+    let b1 = this.points[2].x - this.points[0].x;
 
+    let a2 = this.points[3].y - this.points[1].y;
+    let b2 = this.points[1].x - this.points[3].x;
+
+    let d = a1 * b2 - a2 * b1;
+
+    if (d !== 0) {
+        let c1 = this.points[2].y * this.points[0].x - this.points[2].x * this.points[0].y;
+        let c2 = this.points[1].y * this.points[3].x - this.points[1].x * this.points[3].y;
+
+        let xi = (b1 * c2 - b2 * c1) / d;
+        let yi = (a2 * c1 - a1 * c2) / d;
+
+        this.element.style.top = yi - this.element.offsetHeight / 2 + 'px';
+        this.element.style.left = xi - this.element.offsetWidth / 2 + 'px';
+    }
+  }
+
+  setElementSize() {
     let width = Math.pow(this.points[1].x - this.points[0].x, 2) + Math.pow(this.points[1].y - this.points[0].y, 2);
     width     = Math.sqrt(width);
     width     = parseFloat(width.toFixed(1));
@@ -126,57 +104,38 @@ class Transformer {
     // this.infoPanel.style.padding = 15 + 'px';
 
     this.buttonsPanel.style.width = width * 5 + 'px';
-
-    this.element.style.top  = this.points[0].y + 'px';
-    this.element.style.left = this.points[0].x + 'px';
   }
 
+  getQrTranslate() {
+    return `translate(${this.points[0].x}px, ${this.points[0].y}px)`;
+  }
+
+  //TODO: Maybe use
   getScale() {
     return '';
   }
 
   getRotate() {
     let angle             = this.__qr.getAngle();
-    let x                 = this.display.beta;
-    let y                 = this.display.gamma;
-    let z                 = this.display.alpha;
-    let rad               = Math.atan2(y, x);
-    let deg               = rad * (180 / Math.PI);
-    let screenOrientation = screen.orientation || screen.mozOrientation || screen.msOrientation;
-    let _angle            = screenOrientation.angle || window.orientation || 0;
-    deg                   = deg + _angle;
-    angle                 = parseFloat(angle.toFixed(1));
-
-    document.getElementById('console').innerText = deg.toString() + ' ' + angle + '     ';
-
-    if (deg >= 0 && deg <= 90) {
-      angle = Math.abs(angle) * -1;
-    } else {
-      angle = Math.abs(angle);
-    }
-
     return 'rotateZ(' + angle + 'deg)';
   }
 
   transform() {
-
     let rotate = this.getRotate();
+    let translate = this.getQrTranslate();
 
-    if (rotate) {
-      this.element.style.webkitTransform = rotate;
-      this.element.style.mozTransform    = rotate;
-      this.element.style.msTransform     = rotate;
-      this.element.style.oTransform      = rotate;
-      this.element.style.transform       = rotate;
+    if (rotate && translate) {
+      this.element.style.webkitTransform = translate + ' ' + rotate;
+      this.element.style.mozTransform    = translate + ' ' + rotate;
+      this.element.style.msTransform     = translate + ' ' + rotate;
+      this.element.style.oTransform      = translate + ' ' + rotate;
+      this.element.style.transform       = translate + ' ' + rotate;
     }
   }
 }
 
 window.onload = () => {
-
-  let display     = new Display();
-  let transformer = new Transformer(display);
-
+  let transformer = new Transformer();
   let lastDetectTime = null;
 
   let detectCallback = (data) => {
